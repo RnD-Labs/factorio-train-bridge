@@ -1,0 +1,9 @@
+{
+  "name": "RnD_Labs_Bridges",
+  "version": "0.1.0",
+  "title": "RnD Labs - Bridges",
+  "author": "Scott Richmond",
+  "factorio_version": "0.18",
+  "dependencies": ["base >= 0.18"],
+  "description": "TODO"
+}
