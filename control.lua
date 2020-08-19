@@ -345,7 +345,7 @@ if (event.entity.name == "RTTrainRamp"
 		})
 	SpookyGhost.orientation = event.cause.orientation
 	SpookyGhost.operable = false
-  SpookyGhost.speed = 0.8*event.cause.speed
+  SpookyGhost.speed = 0.8*event.cause.speed -- What is this?
 	
 	base = event.cause.type
 	mask = "NoMask"
@@ -422,8 +422,11 @@ if (event.entity.name == "RTTrainRamp"
       limit = 1
     }[1]
   global.FlyingTrains[SpookyGhost.unit_number].bridgeDownRamp = bridgeDownRamp
+--- TODO: we need to jump from the BACK of the car to the tile AFTER the downramp PLUS size of car
+  local dist = bridgeDownRamp.position.x - event.cause.position.x
+  dist = dist + 20 -- Jump over the down ramp. 20 magic number for hax for now
+---
 
-  local dist = bridgeDownRamp.position.x - event.entity.position.x
   global.FlyingTrains[SpookyGhost.unit_number].bridgDist = dist
 
   global.FlyingTrains[SpookyGhost.unit_number].LandTick = GetLandTick(event.cause.speed, dist)
@@ -491,10 +494,10 @@ if (event.entity.name == "RTTrainRamp"
 			global.FlyingTrains[SpookyGhost.unit_number].LandTick = GetLandTick(global.FlyingTrains[number].speed, dist)
 			global.FlyingTrains[SpookyGhost.unit_number].AirTime = global.FlyingTrains[number].AirTime
 			if (global.FlyingTrains[SpookyGhost.unit_number].speed>0) then
-				SpookyGhost.speed = 0.8*math.abs(global.FlyingTrains[number].speed)
+				--SpookyGhost.speed = 0.8*math.abs(global.FlyingTrains[number].speed)
 				global.FlyingTrains[SpookyGhost.unit_number].speed = math.abs(global.FlyingTrains[number].speed)
 			else
-				SpookyGhost.speed = -0.8*math.abs(global.FlyingTrains[number].speed)
+				--SpookyGhost.speed = -0.8*math.abs(global.FlyingTrains[number].speed)
 				global.FlyingTrains[SpookyGhost.unit_number].speed = -math.abs(global.FlyingTrains[number].speed)
 			end
 		end
@@ -524,9 +527,10 @@ end
 end)
 
 function GetLandTick(trainSpeed, dist)
-  local speedKmh = 130*math.abs(trainSpeed) -- TODO Where does this 130 come from? Something here isn't accurate
-  local speedMps = speedKmh * 0.2777777778 
-  local distOverTime = dist/speedMps
+  --local speedKmh = 130*math.abs(trainSpeed) -- TODO Where does this 130 come from? Something here isn't accurate
+  --local speedMps = speedKmh * 0.2777777778 
   local tickPerSec = 60
+  local speedMps = trainSpeed * tickPerSec
+  local distOverTime = dist/speedMps
   return math.ceil(game.tick + (distOverTime*tickPerSec))
 end
