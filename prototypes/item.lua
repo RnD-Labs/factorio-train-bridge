@@ -1,5 +1,5 @@
 local bbr_rail_pictures_internal = function(elems)
-	local keys = {{"straight_rail", "horizontal", 64, 128, 0, 0, true},
+	local keys = {{"straight_rail", "horizontal", 64, 128, 0, -1, true},
                 {"straight_rail", "vertical", 128, 64, 0, 0, true},
                 {"straight_rail", "diagonal-left-top", 96, 96, 0.5, 0.5, true},
                 {"straight_rail", "diagonal-right-top", 96, 96, -0.5, 0.5, true},
@@ -32,6 +32,7 @@ local bbr_rail_pictures_internal = function(elems)
 				flags = elem.mipmap and { "icon" } or { "low-object" },
 				width = key[3],
 				height = key[4],
+				--shift = {0, -60},
 				shift = {key[5], key[6]},
 				variation_count = (key[7] and elem.variations) or 1,
 				hr_version = {
@@ -40,6 +41,7 @@ local bbr_rail_pictures_internal = function(elems)
 					flags = elem.mipmap and { "icon" } or { "low-object" },
 					width = key[3]*2,
 					height = key[4]*2,
+					--shift = {0, -60},
 					shift = {key[5], key[6]},
 					scale = 0.5,
           variation_count = (key[7] and elem.variations) or 1
@@ -87,15 +89,15 @@ end
 
 local bbr_rail_pictures = function(id)
 	return bbr_rail_pictures_internal({{"metals", "metals", mipmap = true},
-									{"backplates", "backplates", mipmap = true},
-									{"ties", "ties", variations = 3},
-									{"stone_path", "stone-path", variations = 3, id = id},
-									{"stone_path_background", "stone-path-background", variations = 3, id = id},
-									{"segment_visualisation_middle", "segment-visualisation-middle"},
-									{"segment_visualisation_ending_front", "segment-visualisation-ending-1"},
-									{"segment_visualisation_ending_back", "segment-visualisation-ending-2"},
-									{"segment_visualisation_continuing_front", "segment-visualisation-continuing-1"},
-									{"segment_visualisation_continuing_back", "segment-visualisation-continuing-2"}
+									{"backplates", "backplates", mipmap = true, shift = {0, -6}},
+									{"ties", "ties", variations = 3, shift = {0, -6}},
+									{"stone_path", "stone-path", variations = 3, id = id, shift = {0, -6}},
+									{"stone_path_background", "stone-path-background", variations = 3, id = id, shift = {0, -6}},
+									{"segment_visualisation_middle", "segment-visualisation-middle", shift = {0, -6}},
+									{"segment_visualisation_ending_front", "segment-visualisation-ending-1", shift = {0, -6}},
+									{"segment_visualisation_ending_back", "segment-visualisation-ending-2", shift = {0, -6}},
+									{"segment_visualisation_continuing_front", "segment-visualisation-continuing-1", shift = {0, -6}},
+									{"segment_visualisation_continuing_back", "segment-visualisation-continuing-2", shift = {0, -6}}
 									})
 end
 
