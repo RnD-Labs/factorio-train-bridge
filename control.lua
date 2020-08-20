@@ -190,192 +190,85 @@ function(eventf)
 
 		--------- landing ----------
 		if (game.tick == properties.LandTick) then
-			TrainLandedOn = properties.GuideCar.surface.find_entities_filtered
-				{
-					name = {"RTTrainBouncePlate", "RTTrainDirectedBouncePlate"},
+			NewTrain = properties.GuideCar.surface.create_entity
+				({
+					name = properties.name,
 					position = properties.GuideCar.position,
-					radius = 1.5,
-					collision_mask = "object-layer"
-				}[1] -- in theory only one thing should be detected in the object layer this way
-			if (TrainLandedOn ~= nil and TrainLandedOn.name == "RTTrainBouncePlate") then
-				properties.LaunchTick = game.tick
-				properties.LandTick = math.ceil(game.tick + 130*math.abs(properties.speed))
-				properties.GuideCar.teleport(TrainLandedOn.position)
-				TrainLandedOn.surface.create_particle
-					({
-					name = "RTTrainBouncePlateParticle",
-					position = TrainLandedOn.position,
-					movement = {0,0},
-					height = 0,
-					vertical_speed = 0.2,
-					frame_speed = 1
-					})
-				TrainLandedOn.surface.play_sound
-					{
-						path = "bounce",
-						position = TrainLandedOn.position,
-						volume = 2
-					}
-
-			elseif (TrainLandedOn ~= nil and TrainLandedOn.name == "RTTrainDirectedBouncePlate") then
-				properties.GuideCar.teleport(TrainLandedOn.position)
-				properties.RampOrientation = TrainLandedOn.orientation+0.5
-				if (properties.GuideCar.speed > 0) then
-					properties.GuideCar.orientation = TrainLandedOn.orientation
-					properties.orientation = TrainLandedOn.orientation
-				elseif (properties.GuideCar.speed < 0) then
-					properties.GuideCar.orientation = TrainLandedOn.orientation+0.5
-					properties.orientation = TrainLandedOn.orientation+0.5
+					direction = properties.orientation, -- i think this does nothing
+					force = properties.GuideCar.force,
+					raise_built = true
+				})
+			-- train created --	
+			if (NewTrain ~= nil) then 
+				if (properties.passenger ~= nil) then
+					NewTrain.set_driver(game.players[properties.passenger])	
+				end	
+			
+				AngleChange = math.abs(NewTrain.orientation-properties.orientation) -- a new train will be made if there's enough rail, direction doesn't matter
+				if (AngleChange > 0.5) then
+					AngleChange = 1 - AngleChange
+				end
+				if (AngleChange <= 0.125) then					
+				elseif (AngleChange >= 0.375) then
+					NewTrain.disconnect_rolling_stock(defines.rail_direction.front)
+					NewTrain.disconnect_rolling_stock(defines.rail_direction.back)
+					NewTrain.rotate()
+					NewTrain.connect_rolling_stock(defines.rail_direction.front)
+					NewTrain.connect_rolling_stock(defines.rail_direction.back)
+				else -- AngleChange is between 0.125 and 0.375, which is a rail ~90 degrees off from original launch. doesn't make sense so destroy
+					NewTrain.die()
+					for urmum, lol in pairs(properties.GuideCar.surface.find_entities_filtered({position = properties.GuideCar.position, radius = 4})) do
+						if (lol.valid and lol.is_entity_with_health == true and lol.health ~= nil) then
+							lol.damage(1000, "neutral", "explosion")
+						elseif (lol.valid and lol.name == "cliff") then
+							lol.destroy({do_cliff_correction = true})
+						end
+					end
 				end
 				
-				if (properties.orientation >= 1) then
-					properties.orientation = properties.orientation-1
-				end	
-				if (properties.RampOrientation >= 1) then
-					properties.RampOrientation = properties.RampOrientation-1
-				end
+				if (NewTrain.valid) then
+					-- this order of setting speed -> manual mode -> schedule is very important, other orders mess up a lot more
+					if (properties.RampOrientation == properties.orientation) then
+						NewTrain.train.speed = -properties.speed
+					else
+						NewTrain.train.speed = properties.speed
+					end
 
-				base = properties.type
-				mask = "NoMask"
-				way = global.OrientationUnitComponents[properties.orientation].name
-				if (base == "locomotive") then
-					mask = "locomotiveMask"..way
-				--elseif (base == "cargo-wagon") then
-				--elseif (base == "fluid-wagon") then
-				--elseif (base == "artillery-wagon") then
-				end
-				rendering.destroy(properties.TrainImageID)
-				rendering.destroy(properties.MaskID)
-				rendering.destroy(properties.ShadowID)
-				properties.TrainImageID = rendering.draw_sprite
-					{
-					sprite = "RT"..base..way, 
-					target = properties.GuideCar,
-					surface = properties.GuideCar.surface,
-					x_scale = 0.5,
-					y_scale = 0.5,
-					render_layer = 145
-					}
-				properties.MaskID = rendering.draw_sprite
-					{
-					sprite = "RT"..mask, 
-					tint = properties.color or {r = 234, g = 17, b = 0, a = 100},
-					target = properties.GuideCar,
-					surface = properties.GuideCar.surface,
-					x_scale = 0.5,
-					y_scale = 0.5,
-					render_layer = 145
-					}
-				properties.ShadowID = rendering.draw_sprite
-					{
-					sprite = "GenericShadow", 
-					tint = {a = 90},
-					target = properties.GuideCar,
-					surface = properties.GuideCar.surface,
-					orientation = properties.orientation,
-					x_scale = 0.25,
-					y_scale = 0.4,
-					render_layer = 144
-					}		
-					
-				properties.LaunchTick = game.tick
-				properties.LandTick = math.ceil(game.tick + 130*math.abs(properties.speed))
-				TrainLandedOn.surface.create_particle
-					({
-					name = "RTTrainBouncePlateParticle",
-					position = TrainLandedOn.position,
-					movement = {0,0},
-					height = 0,
-					vertical_speed = 0.2,
-					frame_speed = 1
-					})
-				TrainLandedOn.surface.play_sound
-					{
-						path = "bounce",
-						position = TrainLandedOn.position,
-						volume = 2
-					}			
-			
-			
-			else
-				NewTrain = properties.GuideCar.surface.create_entity
-					({
-						name = properties.name,
-						position = properties.GuideCar.position,
-						direction = properties.orientation, -- i think this does nothing
-						force = properties.GuideCar.force,
-						raise_built = true
-					})
-				-- train created --	
-				if (NewTrain ~= nil) then 
-					if (properties.passenger ~= nil) then
-						NewTrain.set_driver(game.players[properties.passenger])	
+					-- TODO: This is forced to false because the signal ignore hack needs it. We should try to respect the mode it was in prior
+					NewTrain.train.manual_mode = false --properties.ManualMode -- Trains are default created in manual mode
+					if (properties.schedule ~= nil) then
+						NewTrain.train.schedule = properties.schedule
 					end	
 				
-					AngleChange = math.abs(NewTrain.orientation-properties.orientation) -- a new train will be made if there's enough rail, direction doesn't matter
-					if (AngleChange > 0.5) then
-						AngleChange = 1 - AngleChange
-					end
-					if (AngleChange <= 0.125) then					
-					elseif (AngleChange >= 0.375) then
-						NewTrain.disconnect_rolling_stock(defines.rail_direction.front)
-						NewTrain.disconnect_rolling_stock(defines.rail_direction.back)
-						NewTrain.rotate()
-						NewTrain.connect_rolling_stock(defines.rail_direction.front)
-						NewTrain.connect_rolling_stock(defines.rail_direction.back)
-					else -- AngleChange is between 0.125 and 0.375, which is a rail ~90 degrees off from original launch. doesn't make sense so destroy
-						NewTrain.die()
-						for urmum, lol in pairs(properties.GuideCar.surface.find_entities_filtered({position = properties.GuideCar.position, radius = 4})) do
-							if (lol.valid and lol.is_entity_with_health == true and lol.health ~= nil) then
-								lol.damage(1000, "neutral", "explosion")
-							elseif (lol.valid and lol.name == "cliff") then
-								lol.destroy({do_cliff_correction = true})
+					if (NewTrain.type == "locomotive") then
+						NewTrain.color = properties.color
+						NewTrain.backer_name = properties.SpecialName
+						if (NewTrain.burner) then
+							NewTrain.burner.currently_burning = properties.CurrentlyBurning
+							NewTrain.burner.remaining_burning_fuel = properties.RemainingFuel 
+							for FuelName, quantity in pairs(properties.FuelInventory) do
+								NewTrain.get_fuel_inventory().insert({name = FuelName, count = quantity})
 							end
 						end
-					end
-					
-					if (NewTrain.valid) then
-						-- this order of setting speed -> manual mode -> schedule is very important, other orders mess up a lot more
-						if (properties.RampOrientation == properties.orientation) then
-							NewTrain.train.speed = -properties.speed
-						else
-							NewTrain.train.speed = properties.speed
+					elseif (NewTrain.type == "cargo-wagon") then
+						for ItemName, quantity in pairs(properties.cargo) do
+							NewTrain.get_inventory(defines.inventory.cargo_wagon).insert({name = ItemName, count = quantity})
 						end
-
-						NewTrain.train.manual_mode = false --properties.ManualMode -- Trains are default created in manual mode
-						if (properties.schedule ~= nil) then
-							NewTrain.train.schedule = properties.schedule
-						end	
-					
-						if (NewTrain.type == "locomotive") then
-							NewTrain.color = properties.color
-							NewTrain.backer_name = properties.SpecialName
-							if (NewTrain.burner) then
-								NewTrain.burner.currently_burning = properties.CurrentlyBurning
-								NewTrain.burner.remaining_burning_fuel = properties.RemainingFuel 
-								for FuelName, quantity in pairs(properties.FuelInventory) do
-									NewTrain.get_fuel_inventory().insert({name = FuelName, count = quantity})
-								end
-							end
-						elseif (NewTrain.type == "cargo-wagon") then
-							for ItemName, quantity in pairs(properties.cargo) do
-								NewTrain.get_inventory(defines.inventory.cargo_wagon).insert({name = ItemName, count = quantity})
-							end
-							NewTrain.get_inventory(defines.inventory.cargo_wagon).set_bar(properties.bar)
-							for i, filter in pairs(properties.filter) do
-								NewTrain.get_inventory(defines.inventory.cargo_wagon).set_filter(i, filter)
-							end
-						elseif (NewTrain.type == "fluid-wagon") then
-							for FluidName, quantity in pairs(properties.fluids) do
-								NewTrain.insert_fluid({name = FluidName, amount = quantity})
-							end
-						elseif (NewTrain.type == "artillery-wagon") then
-							for ItemName, quantity in pairs(properties.artillery) do
-								NewTrain.get_inventory(defines.inventory.artillery_wagon_ammo).insert({name = ItemName, count = quantity})
-							end
-						end	
-					end
-					properties.GuideCar.destroy()
+						NewTrain.get_inventory(defines.inventory.cargo_wagon).set_bar(properties.bar)
+						for i, filter in pairs(properties.filter) do
+							NewTrain.get_inventory(defines.inventory.cargo_wagon).set_filter(i, filter)
+						end
+					elseif (NewTrain.type == "fluid-wagon") then
+						for FluidName, quantity in pairs(properties.fluids) do
+							NewTrain.insert_fluid({name = FluidName, amount = quantity})
+						end
+					elseif (NewTrain.type == "artillery-wagon") then
+						for ItemName, quantity in pairs(properties.artillery) do
+							NewTrain.get_inventory(defines.inventory.artillery_wagon_ammo).insert({name = ItemName, count = quantity})
+						end
+					end	
+				end
+				properties.GuideCar.destroy()
 					
 				-- no train created --
 				else 
@@ -418,7 +311,7 @@ function(eventf)
 					
 				end
 				global.FlyingTrains[PropUnitNumber] = nil
-			end	
+				
 		------------- animating -----------	
 		elseif (properties.RampOrientation == 0) then -- going down
 			rendering.set_target(properties.TrainImageID, properties.GuideCar, {0,((game.tick-properties.LaunchTick)^2-(game.tick-properties.LaunchTick)*properties.AirTime)/500})
