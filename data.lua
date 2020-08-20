@@ -4,6 +4,7 @@ require("prototypes.item")
 require("prototypes.PropHunt")
 require("prototypes.TrainRamp")
 require("prototypes.TrainSprites")
+require("prototypes.BridgeSignal")
 
 data:extend({
   {

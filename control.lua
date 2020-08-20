@@ -28,7 +28,95 @@ function Initialize()
 	if (global.FlyingTrains == nil) then
 		global.FlyingTrains = {}		
 	end
+
+	if (global.Bridges == nil) then
+		global.Bridges = {}		
+	end	
+	
+	if (global.ModifiedLocos == nil) then
+		global.ModifiedLocos = {}		
+	end
 end
+
+function FindBridgeRampPairs()
+end
+
+function SetupBridgeRampPair(bridgeRamp)
+end
+
+function GetOppositeOrientationUnit(direction)
+	if(direction.name == "up") then return global.OrientationUnitComponents[0.5]
+	elseif(direction.name == "down") then return global.OrientationUnitComponents[0]
+	elseif(direction.name == "left") then return global.OrientationUnitComponents[0.25]
+	elseif(direction.name == "right") then return global.OrientationUnitComponents[0.75]
+	end
+end
+
+function GetOppositeOrientation(direction)
+	if(direction == 0) then return 0.5
+	elseif(direction == 0.5) then return 0
+	elseif(direction == 0.75) then return 0.25
+	elseif(direction == 0.25) then return 0.75
+	end
+end
+
+function FindOpposingDownRamp(bridgeUpRamp)
+	local surface = game.players[1].surface
+	local bridgeDirection = global.OrientationUnitComponents[GetOppositeOrientation(bridgeUpRamp.orientation)]
+	local rampHalfSize = 1.6
+	local nextPos = {bridgeUpRamp.position.x + (bridgeDirection.x*rampHalfSize*2), bridgeUpRamp.position.y + (bridgeDirection.y*rampHalfSize*2)}
+
+	-- These ramps are technically signals and don't sit ON the rail. They are technically offset based on direction
+	if(bridgeUpRamp.orientation == 0.75) then nextPos[2] = nextPos[2] - 2
+	elseif(bridgeUpRamp.orientation == 0.25) then nextPos[2] = nextPos[2] + 2
+	elseif(bridgeUpRamp.orientation == 0.0) then nextPos[1] = nextPos[1] + 2
+	elseif(bridgeUpRamp.orientation == 0.5) then nextPos[1] = nextPos[1] - 2
+	end
+
+	local foundDownRamp = false
+	local searchLength = 0
+	while(foundDownRamp ~= true)
+	do
+		if(searchLength >= 100) then return nil end
+
+		local bridge = surface.find_entities_filtered( 
+		{
+			position = nextPos,
+			type = "rail-signal",
+			name = "RTTrainRamp",
+			limit = 1				
+		})
+		if(bridge ~= nil and bridge[1] ~= nil) then
+			foundDownRamp = true
+			return bridge[1]
+		end
+		
+		searchLength = searchLength + 1
+		nextPos[1] = nextPos[1] + bridgeDirection.x
+		nextPos[2] = nextPos[2] + bridgeDirection.y
+	end
+end
+
+script.on_event(defines.events.script_raised_built, 
+function(event)
+end,
+{{filter = "type", type = "rail-signal"}, {filter = "name", name = "RTTrainRamp"}})
+
+script.on_event(defines.events.on_entity_cloned, 
+function(event)
+end,
+{{filter = "type", type = "rail-signal"}, {filter = "name", name = "RTTrainRamp"}})
+
+script.on_event(defines.events.script_raised_revive, 
+function(event)
+end,
+{{filter = "type", type = "rail-signal"}, {filter = "name", name = "RTTrainRamp"}})
+
+script.on_event(defines.events.on_player_rotated_entity,
+function(event)
+end)
+--- events.on_player_rotated_entity doesn't support filtering!
+--{{filter = "type", type = "rail-signal"}, {filter = "name", name = "RTTrainRamp"}})
 
 
 -- script.on_nth_tick(1, 
@@ -41,12 +129,53 @@ end
 
 script.on_event("TeleportTrain", 
 function(eventf)
-  global.selected_entity = game.players[1].selected
+  global.selected_entity = game.players[1].selected or nil
   --selected_entity.teleport({selected_entity.position.x, selected_entity.position.y-1}) 
 end)
 
 script.on_nth_tick(1, 
 function(eventf)
+	-- debugging
+	if(global.selected_entity ~= nil and global.selected_entity.valid and global.selected_entity.train ~= nil) then
+		if(global.FlyingTrains[1] == nil) then
+			global.selected_entity.train.speed = 1
+			global.selected_entity.train.manual_mode = true
+		end
+	end
+	--- 
+
+	--- What we're trying to do here is check each train and if the current signal ahead is an rnd one (IE a bridge one), then ignore it
+	---  To do this we need to set it to manual mode and set the speed, until the signal is NOT an rnd labs one.
+	local locos = game.players[1].surface.find_entities_filtered( 
+	{
+		type = "locomotive"
+	})
+	for id, modLoco in pairs(global.ModifiedLocos) do
+		if(modLoco.train.valid) then
+			if(modLoco.train.signal == nil or (modLoco.train.signal ~= nil and (modLoco.train.signal.name ~= "rndLabs-rail-chain-signal" or modLoco.train.signal.name ~= "rndLabs-rail-signal"))) then 			
+				modLoco.train.speed = modLoco.speed
+				modLoco.train.manual_mode = modLoco.manual_mode
+				global.ModifiedLocos[id] = nil
+			end
+		end
+	end
+
+	for id, loco in pairs(locos) do
+		if(loco.train.signal ~= nil) then
+			if(loco.train.signal.name == "rndLabs-rail-chain-signal" or loco.train.signal.name == "rndLabs-rail-signal") then
+				local speed = math.max(loco.train.speed, 1)
+				global.ModifiedLocos[loco.train.id] = {
+					train = loco.train,
+					speed = speed,
+					manual_mode = loco.train.manual_mode
+				}
+				loco.train.speed = speed
+				loco.train.manual_mode = true
+			end
+		end		
+	end
+	
+
 	----------------- train flight ----------------
 	for PropUnitNumber, properties in pairs(global.FlyingTrains) do
 		---------- launching connected wagons ---------
@@ -213,7 +342,7 @@ function(eventf)
 							NewTrain.train.speed = properties.speed
 						end
 
-						NewTrain.train.manual_mode = properties.ManualMode -- Trains are default created in manual mode
+						NewTrain.train.manual_mode = false --properties.ManualMode -- Trains are default created in manual mode
 						if (properties.schedule ~= nil) then
 							NewTrain.train.schedule = properties.schedule
 						end	
@@ -336,6 +465,8 @@ if (event.entity.name == "RTTrainRamp"
 	) then
 	
 	event.entity.health = 9999
+
+	local bridgeDownRamp = FindOpposingDownRamp(event.entity)
 	
 	local SpookyGhost = event.entity.surface.create_entity
 		({
