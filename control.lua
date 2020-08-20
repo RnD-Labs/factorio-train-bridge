@@ -191,13 +191,13 @@ function(eventf)
 		--------- landing ----------
 		if (game.tick == properties.LandTick) then
 			NewTrain = properties.GuideCar.surface.create_entity
-				({
-					name = properties.name,
-					position = properties.GuideCar.position,
-					direction = properties.orientation, -- i think this does nothing
-					force = properties.GuideCar.force,
-					raise_built = true
-				})
+			({
+				name = properties.name,
+				position = properties.GuideCar.position,
+				direction = properties.orientation, -- i think this does nothing
+				force = properties.GuideCar.force,
+				raise_built = true
+			})
 			-- train created --	
 			if (NewTrain ~= nil) then 
 				if (properties.passenger ~= nil) then
@@ -271,47 +271,46 @@ function(eventf)
 				properties.GuideCar.destroy()
 					
 				-- no train created --
-				else 
-					if (properties.GuideCar.surface.find_tiles_filtered{position = properties.GuideCar.position, radius = 1, limit = 1, collision_mask = "player-layer"}[1] == nil) then
-						properties.GuideCar.surface.create_entity
-							({
-								name = "big-scorchmark",
-								position = properties.GuideCar.position
-							})
-					end
-					
-					local key, value = next(game.entity_prototypes[properties.name].corpses)
-					rip = properties.GuideCar.surface.create_entity
+			else 
+				if (properties.GuideCar.surface.find_tiles_filtered{position = properties.GuideCar.position, radius = 1, limit = 1, collision_mask = "player-layer"}[1] == nil) then
+					properties.GuideCar.surface.create_entity
 						({
-							name = key or "locomotive-remnants",
-							position = properties.GuideCar.position,
-							force = properties.GuideCar.force
-						})
-					rip.color = properties.color
-					rip.orientation = properties.orientation
-
-					boom = properties.GuideCar.surface.create_entity
-						({
-							name = "locomotive-explosion",
+							name = "big-scorchmark",
 							position = properties.GuideCar.position
 						})
-					properties.GuideCar.destroy()
-					
-					for each, guy in pairs(game.connected_players) do
-						guy.add_alert(rip,defines.alert_type.entity_destroyed)
-					end
-					
-					for urmum, lol in pairs(boom.surface.find_entities_filtered({position = boom.position, radius = 4})) do
-						if (lol.valid and lol.is_entity_with_health == true and lol.health ~= nil) then
-							lol.damage(1000, "neutral", "explosion")
-						elseif (lol.name == "cliff") then
-							lol.destroy({do_cliff_correction = true})
-						end
-					end
-					
 				end
-				global.FlyingTrains[PropUnitNumber] = nil
 				
+				local key, value = next(game.entity_prototypes[properties.name].corpses)
+				rip = properties.GuideCar.surface.create_entity
+					({
+						name = key or "locomotive-remnants",
+						position = properties.GuideCar.position,
+						force = properties.GuideCar.force
+					})
+				rip.color = properties.color
+				rip.orientation = properties.orientation
+
+				boom = properties.GuideCar.surface.create_entity
+					({
+						name = "locomotive-explosion",
+						position = properties.GuideCar.position
+					})
+				properties.GuideCar.destroy()
+				
+				for each, guy in pairs(game.connected_players) do
+					guy.add_alert(rip,defines.alert_type.entity_destroyed)
+				end
+				
+				for urmum, lol in pairs(boom.surface.find_entities_filtered({position = boom.position, radius = 4})) do
+					if (lol.valid and lol.is_entity_with_health == true and lol.health ~= nil) then
+						lol.damage(1000, "neutral", "explosion")
+					elseif (lol.name == "cliff") then
+						lol.destroy({do_cliff_correction = true})
+					end
+				end
+				
+			end
+			global.FlyingTrains[PropUnitNumber] = nil				
 		------------- animating -----------	
 		elseif (properties.RampOrientation == 0) then -- going down
 			rendering.set_target(properties.TrainImageID, properties.GuideCar, {0,((game.tick-properties.LaunchTick)^2-(game.tick-properties.LaunchTick)*properties.AirTime)/500})
@@ -359,7 +358,6 @@ if (event.entity.name == "RTTrainRamp"
 	
 	event.entity.health = 9999
 
-	local bridgeDownRamp = FindOpposingDownRamp(event.entity)
 	
 	local SpookyGhost = event.entity.surface.create_entity
 		({
@@ -369,7 +367,8 @@ if (event.entity.name == "RTTrainRamp"
 		})
 	SpookyGhost.orientation = event.cause.orientation
 	SpookyGhost.operable = false
-  SpookyGhost.speed = 0.8*event.cause.speed -- What is this?
+  --SpookyGhost.speed = 0.8*event.cause.speed -- What is this?
+  SpookyGhost.speed = event.cause.speed
 	
 	base = event.cause.type
 	mask = "NoMask"
@@ -433,25 +432,27 @@ if (event.entity.name == "RTTrainRamp"
 	global.FlyingTrains[SpookyGhost.unit_number].ShadowID = OwTheEdge
   global.FlyingTrains[SpookyGhost.unit_number].ManualMode = event.cause.train.manual_mode
 
-  -- Find the out ramp of the bridge:
+	-- Find the out ramp of the bridge:
+	local bridgeDownRamp = FindOpposingDownRamp(event.entity)
   -- TODO super hacky atm - Need to assure this is the right signal and not itself, or another elsewhere!
-  local bridgeDownRamp = SpookyGhost.surface.find_entities_filtered
-		{
-      area = 
-      {
-        {event.cause.position.x+5,event.cause.position.y-5}, -- TODO take into account orientation
-				{event.cause.position.x+60,event.cause.position.y+5}
-      },
-      type = {"rail-signal"},
-      limit = 1
-    }[1]
+  -- local bridgeDownRamp = SpookyGhost.surface.find_entities_filtered
+	-- 	{
+  --     area = 
+  --     {
+  --       {event.cause.position.x+5,event.cause.position.y-5}, -- TODO take into account orientation
+	-- 			{event.cause.position.x+60,event.cause.position.y+5}
+  --     },
+  --     type = {"rail-signal"},
+  --     limit = 1
+  --   }[1]
   global.FlyingTrains[SpookyGhost.unit_number].bridgeDownRamp = bridgeDownRamp
 --- TODO: we need to jump from the BACK of the car to the tile AFTER the downramp PLUS size of car
-  local dist = bridgeDownRamp.position.x - event.cause.position.x
-  dist = dist + 20 -- Jump over the down ramp. 20 magic number for hax for now
+	local trainLength = 7
+  local dist =  (bridgeDownRamp.position.x + 2 + trainLength) - (event.entity.position.x - 2)
+  dist = dist -- + 20 -- Jump over the down ramp. 20 magic number for hax for now
 ---
 
-  global.FlyingTrains[SpookyGhost.unit_number].bridgDist = dist
+  global.FlyingTrains[SpookyGhost.unit_number].bridgeDist = dist
 
   global.FlyingTrains[SpookyGhost.unit_number].LandTick = GetLandTick(event.cause.speed, dist)
   global.FlyingTrains[SpookyGhost.unit_number].AirTime = global.FlyingTrains[SpookyGhost.unit_number].LandTick - global.FlyingTrains[SpookyGhost.unit_number].LaunchTick
